@@ -5,7 +5,6 @@ Función para mostrar el recomendador inteligente con IA (Gemini)
 import streamlit as st
 import google.generativeai as genai
 import json
-import re
 
 
 def configurar_gemini():
@@ -172,13 +171,23 @@ def obtener_recomendacion_gemini(datos_credito: dict, perfil_usuario: dict) -> d
         
         for nombre_modelo in modelos_disponibles:
             try:
-                model = genai.GenerativeModel(nombre_modelo)
+                # Configuración para respuesta JSON nativa
+                generation_config = {
+                    "response_mime_type": "application/json"
+                }
+                
+                model = genai.GenerativeModel(
+                    nombre_modelo,
+                    generation_config=generation_config
+                )
+                
                 response = model.generate_content(prompt)
                 
-                texto_respuesta = response.text.strip()
+                # Parseo directo sin necesidad de limpieza
+                resultado = json.loads(response.text)
                 
-                resultado = parsear_respuesta_json(texto_respuesta)
-                resultado['respuesta_completa'] = texto_respuesta
+                # Añadir metadatos
+                resultado['respuesta_completa'] = response.text
                 resultado['exito'] = True
                 resultado['modelo_usado'] = nombre_modelo
                 
@@ -200,124 +209,6 @@ def obtener_recomendacion_gemini(datos_credito: dict, perfil_usuario: dict) -> d
             'consejos': [],
             'resumen': ''
         }
-
-
-def parsear_respuesta_gemini(texto: str) -> dict:
-    """
-    Parsea la respuesta de Gemini para extraer las secciones
-    
-    Args:
-        texto: Texto de respuesta de Gemini
-    
-    Returns:
-        dict: Diccionario con las secciones parseadas
-    """
-    resultado = {
-        'recomendacion': '',
-        'nivel_riesgo': 'NO DETERMINADO',
-        'advertencias': [],
-        'consejos': [],
-        'resumen': ''
-    }
-    
-    secciones = {
-        'RECOMENDACIÓN:': 'recomendacion',
-        'NIVEL DE RIESGO:': 'nivel_riesgo',
-        'ADVERTENCIAS:': 'advertencias',
-        'CONSEJOS FINANCIEROS:': 'consejos',
-        'RESUMEN:': 'resumen'
-    }
-    
-    texto_upper = texto.upper()
-    posiciones = []
-    
-    for encabezado in secciones.keys():
-        pos = texto_upper.find(encabezado.upper())
-        if pos != -1:
-            posiciones.append((pos, encabezado))
-    
-    posiciones.sort(key=lambda x: x[0])
-    
-    for i, (pos, encabezado) in enumerate(posiciones):
-        inicio = pos + len(encabezado)
-        if i + 1 < len(posiciones):
-            fin = posiciones[i + 1][0]
-        else:
-            fin = len(texto)
-        
-        contenido = texto[inicio:fin].strip()
-        campo = secciones[encabezado]
-        
-        if campo in ['advertencias', 'consejos']:
-            lineas = [l.strip().lstrip('-•*').strip() for l in contenido.split('\n') if l.strip() and l.strip() not in ['', '-']]
-            resultado[campo] = [l for l in lineas if l]
-        else:
-            resultado[campo] = contenido
-    
-    return resultado
-
-
-def parsear_respuesta_json(texto: str) -> dict:
-    """
-    Parsea la respuesta JSON de Gemini con fallback robusto
-    """
-    resultado_default = {
-        'recomendacion': '',
-        'nivel_riesgo': 'NO DETERMINADO',
-        'advertencias': [],
-        'consejos': [],
-        'resumen': ''
-    }
-    
-    try:
-        texto_limpio = texto.strip()
-        texto_limpio = re.sub(r'```json\s*', '', texto_limpio)
-        texto_limpio = re.sub(r'```\s*', '', texto_limpio)
-        texto_limpio = texto_limpio.strip()
-        
-        datos = json.loads(texto_limpio)
-        
-        resultado_default['recomendacion'] = datos.get('recomendacion', '')
-        resultado_default['nivel_riesgo'] = datos.get('nivel_riesgo', 'NO DETERMINADO')
-        resultado_default['advertencias'] = datos.get('advertencias', [])
-        resultado_default['consejos'] = datos.get('consejos', [])
-        resultado_default['resumen'] = datos.get('resumen', '')
-        
-        if not isinstance(resultado_default['advertencias'], list):
-            resultado_default['advertencias'] = [str(resultado_default['advertencias'])]
-        if not isinstance(resultado_default['consejos'], list):
-            resultado_default['consejos'] = [str(resultado_default['consejos'])]
-        
-        return resultado_default
-        
-    except json.JSONDecodeError:
-        try:
-            match = re.search(r'\{[\s\S]*\}', texto)
-            if match:
-                datos = json.loads(match.group(0))
-                resultado_default['recomendacion'] = datos.get('recomendacion', '')
-                resultado_default['nivel_riesgo'] = datos.get('nivel_riesgo', 'NO DETERMINADO')
-                resultado_default['advertencias'] = datos.get('advertencias', [])
-                resultado_default['consejos'] = datos.get('consejos', [])
-                resultado_default['resumen'] = datos.get('resumen', '')
-                
-                if not isinstance(resultado_default['advertencias'], list):
-                    resultado_default['advertencias'] = [str(resultado_default['advertencias'])]
-                if not isinstance(resultado_default['consejos'], list):
-                    resultado_default['consejos'] = [str(resultado_default['consejos'])]
-                
-                return resultado_default
-        except:
-            pass
-        
-        try:
-            resultado_default['recomendacion'] = texto[:500] if texto else "No se pudo generar recomendación"
-            resultado_default['consejos'] = ["Revisa tu capacidad de pago", "Compara opciones de crédito"]
-            resultado_default['advertencias'] = ["Consulta con un asesor financiero profesional"]
-            resultado_default['resumen'] = "Análisis no disponible por error en el parsing"
-            return resultado_default
-        except:
-            return resultado_default
 
 
 def calcular_cuota_mensual(monto: float, tea: float, plazo: int) -> float:
