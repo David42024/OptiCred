@@ -4,6 +4,7 @@ Función para mostrar el recomendador inteligente con IA (Gemini)
 """
 import streamlit as st
 import google.generativeai as genai
+import json
 
 
 def configurar_gemini():
@@ -44,6 +45,76 @@ def configurar_gemini():
         return False
 
 
+def validar_datos_entrada(datos_credito: dict, perfil_usuario: dict) -> tuple[bool, str]:
+    """
+    Valida los datos de entrada antes de realizar análisis
+    """
+    errores = []
+    
+    if datos_credito['monto'] <= 0:
+        errores.append("El monto del crédito debe ser mayor a cero")
+    
+    if datos_credito['monto'] > 10000000:
+        errores.append("El monto del crédito es irreal (máximo S/ 10,000,000)")
+    
+    if datos_credito['plazo'] <= 0:
+        errores.append("El plazo debe ser mayor a cero")
+    
+    if datos_credito['plazo'] > 480:
+        errores.append("El plazo es irreal (máximo 480 meses / 40 años)")
+    
+    if datos_credito['tea'] < 0 or datos_credito['tea'] > 300:
+        errores.append("La TEA debe estar entre 0% y 300%")
+    
+    if datos_credito['tcea'] < 0 or datos_credito['tcea'] > 400:
+        errores.append("La TCEA debe estar entre 0% y 400%")
+    
+    if datos_credito['tcea'] < datos_credito['tea']:
+        errores.append("La TCEA no puede ser menor que la TEA")
+    
+    if perfil_usuario['edad'] < 18:
+        errores.append("Debes ser mayor de edad (18 años)")
+    
+    if perfil_usuario['edad'] > 100:
+        errores.append("La edad ingresada no es válida")
+    
+    if perfil_usuario['ingresos'] <= 0:
+        errores.append("Los ingresos deben ser mayores a cero")
+    
+    if perfil_usuario['ingresos'] > 1000000:
+        errores.append("Los ingresos mensuales parecen irreales (máximo S/ 1,000,000)")
+    
+    if perfil_usuario['gastos'] < 0:
+        errores.append("Los gastos no pueden ser negativos")
+    
+    if perfil_usuario['gastos'] > perfil_usuario['ingresos'] * 1.5:
+        errores.append("Los gastos no pueden superar 1.5 veces los ingresos")
+    
+    if perfil_usuario['deudas'] < 0:
+        errores.append("Las deudas no pueden ser negativas")
+    
+    if perfil_usuario['deudas'] > perfil_usuario['ingresos'] * 2:
+        errores.append("Las deudas mensuales parecen irreales (máximo 2x ingresos)")
+    
+    disponible_actual = perfil_usuario['ingresos'] - perfil_usuario['gastos'] - perfil_usuario['deudas']
+    if disponible_actual < 0:
+        errores.append("⚠️ Advertencia: Actualmente tus gastos y deudas superan tus ingresos")
+    
+    if datos_credito['cuota_mensual'] > perfil_usuario['ingresos']:
+        errores.append("La cuota del crédito supera tus ingresos totales")
+    
+    if datos_credito['plazo'] < 3 and datos_credito['monto'] > 5000:
+        errores.append("Plazo muy corto para el monto solicitado")
+    
+    if datos_credito['plazo'] > 360 and datos_credito['monto'] < 50000:
+        errores.append("Plazo excesivo para un monto pequeño (pagarás demasiados intereses)")
+    
+    if errores:
+        return False, "\n".join(f"• {error}" for error in errores)
+    
+    return True, ""
+
+
 def obtener_recomendacion_gemini(datos_credito: dict, perfil_usuario: dict) -> dict:
     """
     Envía los datos a Gemini y obtiene una recomendación personalizada
@@ -79,45 +150,44 @@ def obtener_recomendacion_gemini(datos_credito: dict, perfil_usuario: dict) -> d
     - Ratio de endeudamiento actual: {((perfil_usuario['deudas'] / perfil_usuario['ingresos']) * 100) if perfil_usuario['ingresos'] > 0 else 0:.1f}%
     - Ratio de endeudamiento con nuevo crédito: {(((perfil_usuario['deudas'] + datos_credito['cuota_mensual']) / perfil_usuario['ingresos']) * 100) if perfil_usuario['ingresos'] > 0 else 0:.1f}%
 
-    Por favor, responde EXACTAMENTE en el siguiente formato (usa estos encabezados exactos):
-
-    RECOMENDACIÓN:
-    [Tu recomendación clara sobre si debe o no tomar el crédito, con justificación]
-
-    NIVEL DE RIESGO:
-    [Solo una palabra: BAJO, MEDIO, ALTO o MUY ALTO]
-
-    ADVERTENCIAS:
-    [Lista de advertencias o riesgos específicos, uno por línea con guión]
-
-    CONSEJOS FINANCIEROS:
-    [Lista de consejos prácticos para el usuario, uno por línea con guión]
-
-    RESUMEN:
-    [Un párrafo breve con el resumen final de tu análisis]
+    Responde SOLO con este JSON (sin markdown, sin texto adicional, sin ```json):
+    {{
+        "recomendacion": "Tu recomendación clara sobre si debe o no tomar el crédito, con justificación",
+        "nivel_riesgo": "BAJO o MEDIO o ALTO o MUY ALTO",
+        "advertencias": ["advertencia 1", "advertencia 2", "advertencia 3"],
+        "consejos": ["consejo 1", "consejo 2", "consejo 3"],
+        "resumen": "Un párrafo breve con el resumen final"
+    }}
     """
 
     try:
         # Usar modelos disponibles actualizados (Gemini 2.5 y superiores)
         modelos_disponibles = [
-            'models/gemini-2.5-flash',  # Modelo más rápido y eficiente
-            'models/gemini-flash-latest',
-            'models/gemini-2.0-flash',
-            'models/gemini-2.5-pro',  # Modelo más potente
-            'models/gemini-pro-latest'
+            'models/gemini-3-flash',  # Modelo más rápido y eficiente
+            'models/gemini-2.5-flash'
         ]
         
         ultima_excepcion = None
         
         for nombre_modelo in modelos_disponibles:
             try:
-                model = genai.GenerativeModel(nombre_modelo)
+                # Configuración para respuesta JSON nativa
+                generation_config = {
+                    "response_mime_type": "application/json"
+                }
+                
+                model = genai.GenerativeModel(
+                    nombre_modelo,
+                    generation_config=generation_config
+                )
+                
                 response = model.generate_content(prompt)
                 
-                texto_respuesta = response.text
+                # Parseo directo sin necesidad de limpieza
+                resultado = json.loads(response.text)
                 
-                resultado = parsear_respuesta_gemini(texto_respuesta)
-                resultado['respuesta_completa'] = texto_respuesta
+                # Añadir metadatos
+                resultado['respuesta_completa'] = response.text
                 resultado['exito'] = True
                 resultado['modelo_usado'] = nombre_modelo
                 
@@ -139,61 +209,6 @@ def obtener_recomendacion_gemini(datos_credito: dict, perfil_usuario: dict) -> d
             'consejos': [],
             'resumen': ''
         }
-
-
-def parsear_respuesta_gemini(texto: str) -> dict:
-    """
-    Parsea la respuesta de Gemini para extraer las secciones
-    
-    Args:
-        texto: Texto de respuesta de Gemini
-    
-    Returns:
-        dict: Diccionario con las secciones parseadas
-    """
-    resultado = {
-        'recomendacion': '',
-        'nivel_riesgo': 'NO DETERMINADO',
-        'advertencias': [],
-        'consejos': [],
-        'resumen': ''
-    }
-    
-    secciones = {
-        'RECOMENDACIÓN:': 'recomendacion',
-        'NIVEL DE RIESGO:': 'nivel_riesgo',
-        'ADVERTENCIAS:': 'advertencias',
-        'CONSEJOS FINANCIEROS:': 'consejos',
-        'RESUMEN:': 'resumen'
-    }
-    
-    texto_upper = texto.upper()
-    posiciones = []
-    
-    for encabezado in secciones.keys():
-        pos = texto_upper.find(encabezado.upper())
-        if pos != -1:
-            posiciones.append((pos, encabezado))
-    
-    posiciones.sort(key=lambda x: x[0])
-    
-    for i, (pos, encabezado) in enumerate(posiciones):
-        inicio = pos + len(encabezado)
-        if i + 1 < len(posiciones):
-            fin = posiciones[i + 1][0]
-        else:
-            fin = len(texto)
-        
-        contenido = texto[inicio:fin].strip()
-        campo = secciones[encabezado]
-        
-        if campo in ['advertencias', 'consejos']:
-            lineas = [l.strip().lstrip('-•*').strip() for l in contenido.split('\n') if l.strip() and l.strip() not in ['', '-']]
-            resultado[campo] = [l for l in lineas if l]
-        else:
-            resultado[campo] = contenido
-    
-    return resultado
 
 
 def calcular_cuota_mensual(monto: float, tea: float, plazo: int) -> float:
@@ -396,48 +411,56 @@ def mostrar_recomendador_inteligente():
             'proposito': proposito
         }
         
-        with st.spinner("🔄 Analizando tu perfil con Inteligencia Artificial..."):
-            resultado = obtener_recomendacion_gemini(datos_credito, perfil_usuario)
+        # Validar datos antes de llamar a Gemini
+        es_valido, mensaje_error = validar_datos_entrada(datos_credito, perfil_usuario)
         
-        if resultado['exito']:
-            st.success(f"✅ Análisis completado (Modelo: {resultado.get('modelo_usado', 'N/A')})")
-            
-            st.subheader("📋 Resultado del Análisis")
-            
-            color_riesgo = obtener_color_riesgo(resultado['nivel_riesgo'])
-            st.markdown(f"""
-            <div style="padding: 10px; border-radius: 5px; border-left: 5px solid {color_riesgo}; background-color: rgba(0,0,0,0.05);">
-                <h3>Nivel de Riesgo: <span style="color: {color_riesgo};">{resultado['nivel_riesgo']}</span></h3>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("### 💡 Recomendación")
-            st.write(resultado['recomendacion'])
-            
-            col_adv, col_cons = st.columns(2)
-            
-            with col_adv:
-                st.markdown("### ⚠️ Advertencias")
-                if resultado['advertencias']:
-                    for adv in resultado['advertencias']:
-                        st.warning(f"• {adv}")
-                else:
-                    st.info("No se identificaron advertencias específicas.")
-            
-            with col_cons:
-                st.markdown("### 📚 Consejos Financieros")
-                if resultado['consejos']:
-                    for consejo in resultado['consejos']:
-                        st.info(f"• {consejo}")
-                else:
-                    st.info("No hay consejos adicionales.")
-            
-            st.markdown("### 📝 Resumen")
-            st.write(resultado['resumen'])
-        
+        if not es_valido:
+            st.error("❌ **Datos inválidos detectados:**")
+            st.warning(mensaje_error)
+            st.info("💡 Por favor, revisa los datos ingresados y asegúrate de que sean realistas y coherentes.")
         else:
-            st.error(f"❌ Error al obtener la recomendación: {resultado.get('error', 'Error desconocido')}")
-            st.info("Por favor, verifica tu conexión a internet y la configuración de la API de Gemini.")
+            with st.spinner("🔄 Analizando tu perfil con Inteligencia Artificial..."):
+                resultado = obtener_recomendacion_gemini(datos_credito, perfil_usuario)
+            
+            if resultado['exito']:
+                st.success(f"✅ Análisis completado (Modelo: {resultado.get('modelo_usado', 'N/A')})")
+                
+                st.subheader("📋 Resultado del Análisis")
+                
+                color_riesgo = obtener_color_riesgo(resultado['nivel_riesgo'])
+                st.markdown(f"""
+                <div style="padding: 10px; border-radius: 5px; border-left: 5px solid {color_riesgo}; background-color: rgba(0,0,0,0.05);">
+                    <h3>Nivel de Riesgo: <span style="color: {color_riesgo};">{resultado['nivel_riesgo']}</span></h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("### 💡 Recomendación")
+                st.write(resultado['recomendacion'])
+                
+                col_adv, col_cons = st.columns(2)
+                
+                with col_adv:
+                    st.markdown("### ⚠️ Advertencias")
+                    if resultado['advertencias']:
+                        for adv in resultado['advertencias']:
+                            st.warning(f"• {adv}")
+                    else:
+                        st.info("No se identificaron advertencias específicas.")
+                
+                with col_cons:
+                    st.markdown("### 📚 Consejos Financieros")
+                    if resultado['consejos']:
+                        for consejo in resultado['consejos']:
+                            st.info(f"• {consejo}")
+                    else:
+                        st.info("No hay consejos adicionales.")
+                
+                st.markdown("### 📝 Resumen")
+                st.write(resultado['resumen'])
+            
+            else:
+                st.error(f"❌ Error al obtener la recomendación: {resultado.get('error', 'Error desconocido')}")
+                st.info("Por favor, verifica tu conexión a internet y la configuración de la API de Gemini.")
     
     st.divider()
     st.caption("⚠️ **Disclaimer:** Esta herramienta utiliza Inteligencia Artificial para proporcionar recomendaciones generales. No constituye asesoría financiera profesional. Consulta con un experto financiero antes de tomar decisiones importantes.")

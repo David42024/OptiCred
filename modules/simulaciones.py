@@ -128,6 +128,10 @@ def simular_pago_extraordinario(tabla_original, mes_pago, monto_extra, tea, tipo
     ahorro_intereses = totales_original['total_intereses'] - totales_nuevo['total_intereses']
     tiempo_ahorrado = len(tabla_original) - len(tabla_nueva)
     
+    # Obtener cuotas para comparación
+    cuota_original = tabla_original.iloc[0]['cuota']
+    cuota_nueva = tabla_nueva.iloc[mes_pago]['cuota'] if len(tabla_nueva) > mes_pago else tabla_nueva.iloc[-1]['cuota']
+    
     return {
         'tabla_actualizada': tabla_nueva,
         'resumen': {
@@ -137,7 +141,10 @@ def simular_pago_extraordinario(tabla_original, mes_pago, monto_extra, tea, tipo
             'total_pagado_original': totales_original['total_pagado'],
             'total_pagado_nuevo_real': costo_financiero_nuevo, # Cuotas + Extra
             'meses_ahorrados': tiempo_ahorrado,
-            'nuevo_plazo': len(tabla_nueva)
+            'nuevo_plazo': len(tabla_nueva),
+            'cuota_original': cuota_original,
+            'cuota_nueva': cuota_nueva,
+            'tipo_reduccion': tipo_reduccion
         }
     }
 
