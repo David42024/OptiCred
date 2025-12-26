@@ -835,10 +835,14 @@ def mostrar_calculadora_creditos():
                     
                     # Formatear tabla para mostrar
                     tabla_mostrar = tabla.copy()
+
+                    tabla_mostrar['cuota'] = tabla_mostrar['cuota'] + costo_mensual_extra + (seguro_total / plazo)
+    
+
                     tabla_mostrar['saldo_inicial'] = tabla_mostrar['saldo_inicial'].apply(formatear_moneda)
                     tabla_mostrar['interes'] = tabla_mostrar['interes'].apply(formatear_moneda)
                     tabla_mostrar['amortizacion'] = tabla_mostrar['amortizacion'].apply(formatear_moneda)
-                    tabla_mostrar['cuota'] = tabla_mostrar['cuota'].apply(formatear_moneda)
+                    tabla_mostrar['cuota'] = tabla_mostrar['cuota'].apply(formatear_moneda) 
                     tabla_mostrar['saldo_final'] = tabla_mostrar['saldo_final'].apply(formatear_moneda)
                     
                     # Renombrar columnas para mejor presentación
@@ -1005,6 +1009,9 @@ def mostrar_calculadora_creditos():
                     
                     # Crear cronograma con fechas
                     cronograma = tabla.copy()
+
+                    cronograma['cuota_total'] = cronograma['cuota'] + costo_mensual_extra + (seguro_total / plazo)
+
                     fechas = [fecha_inicio + relativedelta(months=i) for i in range(1, plazo + 1)]
                     cronograma['fecha_pago'] = fechas[:len(cronograma)]
                     cronograma['fecha_pago'] = cronograma['fecha_pago'].apply(lambda x: x.strftime("%d/%m/%Y"))
@@ -1019,7 +1026,7 @@ def mostrar_calculadora_creditos():
                         with col_fecha:
                             st.write(f"📅 **{fila['fecha_pago']}**")
                         with col_cuota:
-                            st.write(f"💰 {formatear_moneda(fila['cuota'])}")
+                            st.write(f"💰 {formatear_moneda(fila['cuota_total'])}") 
                         with col_detalle:
                             st.caption(f"Capital: {formatear_moneda(fila['amortizacion'])} | Interés: {formatear_moneda(fila['interes'])}")
                         
@@ -1035,7 +1042,7 @@ def mostrar_calculadora_creditos():
                             with col_fecha:
                                 st.write(f"📅 **{fila['fecha_pago']}**")
                             with col_cuota:
-                                st.write(f"💰 {formatear_moneda(fila['cuota'])}")
+                                st.write(f"💰 {formatear_moneda(fila['cuota_total'])}")
                             with col_detalle:
                                 st.caption(f"Capital: {formatear_moneda(fila['amortizacion'])} | Interés: {formatear_moneda(fila['interes'])}")
                             
