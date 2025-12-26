@@ -837,16 +837,15 @@ def mostrar_calculadora_creditos():
                     tabla_mostrar = tabla.copy()
 
                     tabla_mostrar['cuota'] = tabla_mostrar['cuota'] + costo_mensual_extra + (seguro_total / plazo)
-    
-
                     tabla_mostrar['saldo_inicial'] = tabla_mostrar['saldo_inicial'].apply(formatear_moneda)
                     tabla_mostrar['interes'] = tabla_mostrar['interes'].apply(formatear_moneda)
                     tabla_mostrar['amortizacion'] = tabla_mostrar['amortizacion'].apply(formatear_moneda)
+                    tabla_mostrar['costos_adicionales'] = costo_mensual_extra + (seguro_total / plazo)
                     tabla_mostrar['cuota'] = tabla_mostrar['cuota'].apply(formatear_moneda) 
                     tabla_mostrar['saldo_final'] = tabla_mostrar['saldo_final'].apply(formatear_moneda)
                     
                     # Renombrar columnas para mejor presentación
-                    tabla_mostrar.columns = ['Mes', 'Saldo Inicial', 'Interés', 'Amortización', 'Cuota', 'Saldo Final']
+                    tabla_mostrar.columns = ['Mes', 'Saldo Inicial', 'Interés', 'Amortización', 'Cuota', 'Saldo final','Costos Adicionales']
                     
                     st.dataframe(
                         tabla_mostrar,
