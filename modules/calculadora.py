@@ -721,6 +721,9 @@ def mostrar_calculadora_creditos():
                 
                 # Costos totales adicionales
                 costos_adicionales = costo_desembolso + (costo_mensual_extra * plazo) + seguro_total
+
+                cuota_total = cuota_base + costo_mensual_extra + (seguro_total / plazo)
+
                 costo_total_credito = totales['total_pagado'] + costos_adicionales
                 
                 # Calcular TCEA
@@ -750,7 +753,7 @@ def mostrar_calculadora_creditos():
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                                 padding: 2rem; border-radius: 16px; text-align: center; color: white; margin: 1rem 0;">
                         <p style="margin: 0; font-size: 1rem; opacity: 0.9;">Tu cuota mensual será de</p>
-                        <h1 style="margin: 0.5rem 0; font-size: 3.5rem; font-weight: 700;">{formatear_moneda(cuota_base)}</h1>
+                        <h1 style="margin: 0.5rem 0; font-size: 3.5rem; font-weight: 700;">{formatear_moneda(cuota_total)}</h1>
                         <p style="margin: 0; font-size: 1rem; opacity: 0.9;">durante {plazo} meses</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -759,7 +762,7 @@ def mostrar_calculadora_creditos():
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                                 padding: 2rem; border-radius: 16px; text-align: center; color: white; margin: 1rem 0;">
                         <p style="margin: 0; font-size: 1rem; opacity: 0.9;">Tu primera cuota será de</p>
-                        <h1 style="margin: 0.5rem 0; font-size: 3rem; font-weight: 700;">{formatear_moneda(cuota_base)}</h1>
+                        <h1 style="margin: 0.5rem 0; font-size: 3rem; font-weight: 700;">{formatear_moneda(cuota_total)}</h1>
                         <p style="margin: 0; font-size: 1rem; opacity: 0.9;">↓ Disminuye hasta {formatear_moneda(cuota_final)} en el mes {plazo}</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -941,6 +944,9 @@ def mostrar_calculadora_creditos():
                     with col_pie2:
                         # Gráfico de cuota (si es alemán, mostrar evolución)
                         if sistema == "Alemán":
+
+                            cuota_final_total = cuota_final + costo_mensual_extra + (seguro_total / plazo)
+
                             fig_cuota = go.Figure()
                             
                             fig_cuota.add_trace(go.Scatter(
@@ -1129,7 +1135,7 @@ def mostrar_calculadora_creditos():
 {"• Banco: " + banco_seleccionado if banco_seleccionado else ""}
 
 💰 RESULTADOS
-• Cuota mensual: {formatear_moneda(cuota_base)}
+• Cuota mensual: {formatear_moneda(cuota_total)}
 • Total intereses: {formatear_moneda(totales['total_intereses'])}
 • Costos adicionales: {formatear_moneda(costos_adicionales)}
 • COSTO TOTAL: {formatear_moneda(costo_total_credito)}
