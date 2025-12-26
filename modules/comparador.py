@@ -1,8 +1,5 @@
 # modules/comparador.py
 """
-Función para mostrar el comparador de créditos con integración a API SBS.
-CORREGIDO: Pasa la categoría correctamente a todos los métodos de API.
-CORREGIDO: Variables tipo_credito reemplazadas por categoria_credito y tipo_credito_especifico
 """
 import streamlit as st
 import plotly.graph_objects as go

@@ -7,6 +7,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 from modules.amortizacion import (
     calcular_cuota_francesa, 
@@ -736,7 +737,7 @@ def mostrar_calculadora_creditos():
                 
                 # Calcular fechas de pago
                 fecha_inicio = datetime.now()
-                fecha_fin = fecha_inicio + timedelta(days=plazo * 30)
+                fecha_fin = fecha_inicio + relativedelta(months=plazo)
                 
                 st.divider()
                 
@@ -998,7 +999,7 @@ def mostrar_calculadora_creditos():
                     
                     # Crear cronograma con fechas
                     cronograma = tabla.copy()
-                    fechas = [fecha_inicio + timedelta(days=30 * i) for i in range(1, plazo + 1)]
+                    fechas = [fecha_inicio + relativedelta(months=i) for i in range(1, plazo + 1)]
                     cronograma['fecha_pago'] = fechas[:len(cronograma)]
                     cronograma['fecha_pago'] = cronograma['fecha_pago'].apply(lambda x: x.strftime("%d/%m/%Y"))
                     
